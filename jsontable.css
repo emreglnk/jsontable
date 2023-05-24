@@ -1,0 +1,158 @@
+.jsontable table {
+    width: 100%;
+    border-spacing: 0px;
+    margin-bottom: 10px;
+    /* border-collapse: separate; */
+}
+
+.jsontable {
+    font-size: 12px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.jsontable table td {
+    
+    font-size: 12px;
+    border-bottom: 1px solid #ccc;
+
+}
+
+.red {
+    background-color: #ffdede;
+    color: #c30000;
+}
+
+.yellow {
+    background-color: #fff9db;
+    color: #d19a00;
+}
+
+.green {
+    background-color: #d0ffb9;
+    color: #369f00;
+}
+
+.asc,
+.desc {
+    display: none;
+    float: right;
+}
+
+.sorting-desc .desc {
+    display: inline-block;
+}
+
+.sorting-desc .asc {
+    display: none;
+}
+
+.sorting-asc .desc {
+    display: none;
+}
+
+.sorting-asc .asc {
+    display: inline-block;
+}
+
+.header-text {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.header {
+    position: relative;
+    min-width: 100px;
+    padding: 0px 5px;
+    font-weight: auto;
+    text-align: left;
+}
+
+.showing-filters .filter-wrapper {
+    display: block;
+}
+
+.filter-wrapper {
+    position: absolute;
+    top: 30px;
+    right: 0px;
+    background-color: #ffffff;
+    padding: 8px;
+    border-radius: 0;
+    width: 200px;
+    display: none;
+    border: 1px solid;
+}
+
+.filter-wrapper select,
+.filter-wrapper input {
+    margin-bottom: 5px;
+    width: 100%;
+    border: 1px solid;
+}
+
+.filtered {
+    /* background-color: #ffd30073; */
+    /* border-radius: 4px; */
+    border-bottom: 3px solid black !important
+}
+
+.filter {
+    display: inline-block;
+    float: right;
+}
+
+.select-value {
+    list-style: none;
+    padding-left: 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.select-value li {
+    display: block;
+    border-bottom: 1px solid #00000026;
+    line-height: 11px;
+}
+
+.select-value li div {
+    display: inline-block;
+    width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.th {
+    resize: horizontal;
+    overflow: auto;
+    font-weight: unset;
+}
+
+
+.select-value li input {
+    display: inline-block;
+    width: 15px;
+}
+
+.hidden {
+    display: none;
+}
+
+.pagination-wrapper {
+    float: right;
+}
+
+.pagination-wrapper button,
+.pagination-wrapper select {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid;
+    height: 25px;
+    padding: 0px 10px;
+    text-align: center;
+}
+
+.pagination-wrapper select {
+    border-left: none;
+    border-right: none;
+}
