@@ -3,10 +3,20 @@
     border-spacing: 0px;
     margin-bottom: 10px;
     /* border-collapse: separate; */
+    overflow-x: auto;
+    overflow-y: visible;
+    display: table;
+}
+.table-wrapper{
+    min-width: 100%;
+    overflow-x: auto;
+    max-height:none;
+    min-height: 400px;
 }
 
 .jsontable {
     font-size: 12px;
+    width: 100%;
     font-family: 'Poppins', sans-serif;
 }
 
@@ -14,6 +24,8 @@
     
     font-size: 12px;
     border-bottom: 1px solid #ccc;
+    border-left: none;
+    border-right: none;
 
 }
 
@@ -155,4 +167,35 @@
 .pagination-wrapper select {
     border-left: none;
     border-right: none;
+}
+
+.searchbar{
+    border-radius: 0;
+    border: 1px solid;
+    margin-bottom: 10px;
+    float: right;
+    padding: 3px;
+}
+
+.clear-filters{
+    border-radius: 0;
+    border: 1px solid;
+    margin-bottom: 10px;
+    padding: 3px 10px;
+    background-color: #fff;
+    cursor: pointer;
+    height: 25px;
+    text-align: center;
+
+}
+.filter-wrapper .clear-filters{
+ width: 100%;
+}
+.nor-select {
+    border-radius: 0;
+    border: 1px solid;
+    padding: 0px 10px;
+    background-color: #fff;
+    height: 25px;
+    margin: 0 5px;
 }

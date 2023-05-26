@@ -1,33 +1,76 @@
 class JsonTable {
     constructor(element, settings) {
+
+        // settings
         this.innerHTML = settings.innerHTML || 1;
         this.numberOfRow = settings.numberOfRow || 10;
         this.lang = settings.lang || 'tr-TR';
+        this.numberCols = settings.numberCols || [];
+        this.dateCols = settings.dateCols || [];
+        this.sortBy = settings.sortBy || 1;
+        this.order = settings.order || 1;
+
+        // localizations
+        
+   
+        this.localTexts = jsonTableLocalText;
+
+      
         this.parent = document.querySelector(element);
+        this.tableWrapper = document.createElement("div");
+        this.tableWrapper.classList.add("table-wrapper");
         this.table = document.createElement("table");
-        this.order = 0;
         this.searchText = "";
         this.styleRow = -1;
         this.idRow = -1;
         this.page = 0;
-        this.numberCols = [];
-        this.dateCols = [];
         this.filteredUniq = [];
         this.filterSavedState = [];
         this.tableFilters = [];
+
+        //creating DOM
         this.topPanel = document.createElement("div");
         this.bottomPanel = document.createElement("div");
+
         this.counter = document.createElement("span");
         this.pagination = document.createElement("div");
+
         this.searchbar = document.createElement("input");
         this.searchbar.classList.add("searchbar");
-        this.searchbar.setAttribute("placeholder", "Arama...");
+        this.searchbar.setAttribute("placeholder", this.localTexts["search"]);
+
         this.parent.append(this.topPanel);
-        this.parent.append(this.table);
+        this.parent.append(this.tableWrapper);
+        this.tableWrapper.append(this.table);
         this.parent.append(this.bottomPanel);
+
         this.topPanel.append(this.searchbar);
         this.bottomPanel.append(this.counter);
         this.bottomPanel.append(this.pagination);
+
+        let numberOfRowsSelect = document.createElement("select");
+        numberOfRowsSelect.classList.add("nor-select");
+        for (const opt of [
+            [10, "10"],
+            [25, "25"],
+            [50, "50"],
+            [-1, this.localTexts["all"]]
+        ]) {
+            let option = document.createElement("option");
+            option.setAttribute("value", opt[0]);
+            option.innerText = opt[1];
+            numberOfRowsSelect.append(option);
+        }
+        numberOfRowsSelect.addEventListener("change", () => this.setNumberOfRows(numberOfRowsSelect.value));
+
+        this.topPanel.append(document.createTextNode(this.localTexts["number_of_rows"]));
+        this.topPanel.append(numberOfRowsSelect);
+        
+        this.clearFilters = document.createElement("button");
+        this.clearFilters.innerText = this.localTexts["clear_filters"];
+        this.clearFilters.classList.add("clear-filters");
+        this.clearFilters.addEventListener("click", () => this.clearAllFilters());
+        this.topPanel.append(this.clearFilters);
 
 
         let prevBtn = document.createElement("button");
@@ -64,10 +107,48 @@ class JsonTable {
     }
 
 
+    localText(key, arr) {
+        let str=this.localTexts[key];
+        return str.replace(/%(\d+)/g, function (_, m) {
+            return arr[--m];
+        });
+    }
+
+    clearAllFilters() {
+        this.searchText = "";
+        this.tableFilters.forEach((filter,index)=>{
+            this.tableFilters[index] = {
+                op: 'na',
+                value: '',
+                value2: ''
+            };
+        });
+        this.build();
+    }
+
+    clearFilter(index) {
+            this.tableFilters[index] = {
+                op: 'na',
+                value: '',
+                value2: ''
+            };
+            this.build();
+            this.showFilters(index);
+    }
+
     loadData(data) {
         this.data = data;
         this.headers = [];
         this.rows = [];
+        this.build();
+    }
+
+    setNumberOfRows(number){
+        if (number>0){
+            this.numberOfRow = number;
+        }else{
+            this.numberOfRow=9999999;
+        }
         this.build();
     }
 
@@ -115,13 +196,13 @@ class JsonTable {
 
 
     sort(row) {
-        this.orderRow = row;
+        this.sortBy = row;
         this.order = !this.order;
         this.headers.forEach(header => {
             header.classList.remove("sorting-asc");
             header.classList.remove("sorting-desc");
         });
-        this.headers[this.orderRow].classList.add(this.order ? "sorting-asc" : "sorting-desc");
+        this.headers[this.sortBy].classList.add(this.order ? "sorting-asc" : "sorting-desc");
         this.build();
     };
 
@@ -178,10 +259,12 @@ class JsonTable {
             if (this.dateCols.indexOf(row) != -1) {
                 let dd = new Date(element);
                 if (element == '0000-00-00') {
-                    element = 'Tarih Yok';
+                    element = this.localTexts["not_a_date"];
                 }
                 if (dd != "Invalid Date" && element != null) {
                     element = dd.toLocaleDateString(this.lang);
+                }else{
+                    element = this.localTexts["not_a_date"];
                 }
             }
             preview.innerHTML = element;
@@ -251,6 +334,7 @@ class JsonTable {
             let headerTitle = document.createElement("span");
             let cellFilters = document.createElement("div");
 
+        
             cellVisible.classList.add('header-text');
             if (this.innerHTML) {
                 headerTitle.innerHTML = element;
@@ -270,22 +354,22 @@ class JsonTable {
             cellVisible.append(filterIcon);
             let filterTypeSelect = document.createElement("select");
             for (const filt of [
-                ["select", "Seçim"],
-                ["inc", "İçiren"],
-                ["gt", "Büyüktür"],
-                ["lt", "Küçüktür"],
-                ["eq", "Eşittir"],
-                ["bt", "Arasında"]
+                ["select", this.localTexts["choose"]],
+                ["inc", this.localTexts["contains"]],
+                ["gt", this.localTexts["bigger_than"]],
+                ["lt", this.localTexts["smaller_than"]],
+                ["eq", this.localTexts["equals"]],
+                ["bt", this.localTexts["between"]]
             ]) {
                 let filter = document.createElement("option");
                 filter.setAttribute("value", filt[0]);
                 filter.innerText = filt[1];
                 filterTypeSelect.append(filter);
             }
+            cellFilters.append(filterTypeSelect);
 
             let valueList = document.createElement("ul");
             valueList.classList.add("select-value");
-            cellFilters.append(filterTypeSelect);
             let filterInput = document.createElement("input");
             let inputType = "text";
             if (this.numberCols.indexOf(index) != -1) {
@@ -342,6 +426,14 @@ class JsonTable {
             cell.append(cellVisible);
             this.headers.push(cell);
             row.append(cell);
+
+
+            let clearFilter = document.createElement("button");
+            clearFilter.innerText = this.localTexts["clear_filters"];
+            clearFilter.classList.add("clear-filters");
+            clearFilter.addEventListener("click", () => this.clearFilter(index));
+            cellFilters.append(clearFilter);
+
             // row.append(cellFilters);
         });
         return row;
@@ -366,10 +458,12 @@ class JsonTable {
             if (this.dateCols.indexOf(index) != -1) {
                 let dd = new Date(element);
                 if (element == '0000-00-00') {
-                    element = 'Tarih Yok';
+                    element = this.localTexts["not_a_date"];
                 }
                 if (dd != "Invalid Date" && element != null) {
                     element = dd.toLocaleDateString(this.lang);
+                } else {
+                    element = this.localTexts["not_a_date"];
                 }
             }
             if (/^(ftp|http|https):\/\/[^ "]+$/.test(element)) {
@@ -418,7 +512,6 @@ class JsonTable {
                 let values = Object.values(row);
                 for (let index = 0; index < values.length; index++) {
                     if (values[index] != null && values[index].toString().toLocaleLowerCase(this.lang).includes(this.searchText.toString().toLocaleLowerCase(this.lang))) {
-                        console.log(values[index].toString().toLocaleLowerCase(this.lang), this.searchText.toString().toLocaleLowerCase(this.lang));
                         return 1;
                     }
                 }
@@ -441,8 +534,8 @@ class JsonTable {
         let nr = 0;
 
         resultarray.sort((a, b) => {
-            a = Object.values(a)[this.orderRow];
-            b = Object.values(b)[this.orderRow];
+            a = Object.values(a)[this.sortBy];
+            b = Object.values(b)[this.sortBy];
             var ret = 0;
             if (a < b) {
                 var ret = -1;
@@ -471,7 +564,7 @@ class JsonTable {
             nr++;
         });
         this.resultarray = resultarray;
-        this.counter.innerText = "Toplam " + this.data.length + " Kayıttan " + resultarray.length + " Kayıt Gösteriliyor";
+        this.counter.innerText = this.localText("number_of_shown_records", [this.data.length, resultarray.length]);
         this.pageSelect.innerHTML = "";
         for (let index = 0; index < resultarray.length / this.numberOfRow; index++) {
             let opt = document.createElement("option");
