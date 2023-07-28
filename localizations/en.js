@@ -10,5 +10,13 @@ var jsonTableLocalText={
     "all": "All",
     "clear_filters": "Clear Filters",
     "number_of_rows": "Number of rows:",
-    "number_of_shown_records":"Showing %2 of %1 total records"
+    "number_of_shown_records":"Showing %2 of %1 total records",
+    "<empty>": "<EMPTY>",
+    "total": "Total",
+    "sum": "Sum",
+    "min": "Min.",
+    "max": "Max.",
+    "avg": "Avg.",
+    "count": "Count",
+    "percentage": "Percentage",
 }

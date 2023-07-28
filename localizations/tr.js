@@ -10,5 +10,14 @@ var jsonTableLocalText = {
     "clear_filters":"Filtreleri Temizle",
     "all":"Tümü",
     "number_of_rows":"Satır Sayısı:",
-    "number_of_shown_records":"Toplam %1 Kayıttan %2 Kayıt Gösteriliyor"
+    "number_of_shown_records":"Toplam %1 Kayıttan %2 Kayıt Gösteriliyor",
+    "<empty>" : "<BOŞ>",
+    "column" : "Sütun",
+    "total" : "Toplam",
+    "sum" : "Toplam",
+    "min" : "Min.",
+    "max" : "Max.",
+    "avg" : "Ortalama",
+    "count" : "Sayı",
+    "percentage" : "Yüzde",
 }

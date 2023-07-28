@@ -1,3 +1,14 @@
+// Todo:
+// Save settings and filters to cookie with uniqkey (?)
+// Show/Hide Cols
+// Select/Deselect All and Search Bar for filters
+// Add Number of records to filter list
+// Sum/Avg/Min./Max. Numbers to footer row or an info window
+// Pop-up window for long texts
+// Buttons for rows with custom click events
+// Select rows and actions for selection
+// Export to Excel, CSV
+
 class JsonTable {
     constructor(element, settings) {
 
@@ -7,8 +18,14 @@ class JsonTable {
         this.lang = settings.lang || 'tr-TR';
         this.numberCols = settings.numberCols || [];
         this.dateCols = settings.dateCols || [];
-        this.sortBy = settings.sortBy || 1;
+        this.sortBy = settings.sortBy || 0;
         this.order = settings.order || 1;
+
+       
+
+
+
+
 
         // localizations
         
@@ -27,6 +44,7 @@ class JsonTable {
         this.filteredUniq = [];
         this.filterSavedState = [];
         this.tableFilters = [];
+        this.filterWrappers = [];
 
         //creating DOM
         this.topPanel = document.createElement("div");
@@ -37,6 +55,10 @@ class JsonTable {
 
         this.searchbar = document.createElement("input");
         this.searchbar.classList.add("searchbar");
+        
+        this.statTable = document.createElement("table");
+        this.statTable.classList.add("stat-table");
+
         this.searchbar.setAttribute("placeholder", this.localTexts["search"]);
 
         this.parent.append(this.topPanel);
@@ -47,6 +69,7 @@ class JsonTable {
         this.topPanel.append(this.searchbar);
         this.bottomPanel.append(this.counter);
         this.bottomPanel.append(this.pagination);
+        this.bottomPanel.append(this.statTable);
 
         let numberOfRowsSelect = document.createElement("select");
         numberOfRowsSelect.classList.add("nor-select");
@@ -98,10 +121,16 @@ class JsonTable {
         this.table.classList.add("table");
         this.table.classList.add("jsontable");
 
+        // document.addEventListener("click", function (event) {
+        //     if (event.target.closest(".showing-filters")) return
+        //     document.querySelectorAll('.showing-filters').forEach(el => {
+        //         el.classList.remove("showing-filters");
+        //     });
+        // })
         document.addEventListener("click", function (event) {
-            if (event.target.closest(".showing-filters")) return
-            document.querySelectorAll('.showing-filters').forEach(el => {
-                el.classList.remove("showing-filters");
+            if (event.target.closest(".showing-filters") || event.target.closest(".filter-container")) return
+            document.querySelectorAll('.filter-wrapper').forEach(el => {
+                el.classList.remove("visible");
             });
         })
     }
@@ -159,7 +188,7 @@ class JsonTable {
         switch (filter.op) {
             case "na":
                 return 1;
-                break;
+                break; 
             case "gt":
                 return value > filter.value;
                 break;
@@ -179,6 +208,9 @@ class JsonTable {
                 return value.toString().toLocaleLowerCase(this.lang).includes(filter.value.toString().toLocaleLowerCase(this.lang));
                 break;
             case "select":
+                if(filter.value == "<empty>"){
+                    return value == "" || value == null;
+                }
                 if (value == null) {
                     return 0;
                 }
@@ -210,8 +242,19 @@ class JsonTable {
         this.headers.forEach(header => {
             header.classList.remove("showing-filters");
         });
-        this.headers[row].classList.toggle("showing-filters");
-        let listTarget = this.headers[row].getElementsByClassName("select-value")[0];
+        this.filterWrappers.forEach(fw => {
+            fw.classList.remove("visible");
+        });
+        let header = this.headers[row]
+        header.classList.toggle("showing-filters");
+        let filter = this.filterWrappers[row];
+        filter.classList.toggle("visible");
+        // set position of filter from header
+        let rect = header.getBoundingClientRect();
+        filter.style.top = rect.bottom + "px";
+        filter.style.left = rect.left-90 + "px";
+        filter.style.width = rect.width + "px"; 
+        let listTarget = filter.getElementsByClassName("select-value")[0];
         listTarget.innerHTML = '';
         let activeState = this.filteredUniq[row];
         if (this.filterSavedState[row] != undefined) {
@@ -231,8 +274,16 @@ class JsonTable {
             let li = document.createElement("li");
             let cb = document.createElement("input");
             let preview = document.createElement("div");
-            cb.setAttribute("type", "checkbox");
-            cb.setAttribute("value", element);
+ 
+            if (element == "") {
+                cb.setAttribute("type", "checkbox");
+                cb.setAttribute("value", "<empty>");
+                preview.innerText = this.localTexts["<empty>"];;
+            } else {
+                cb.setAttribute("type", "checkbox");
+                cb.setAttribute("value", element);
+                preview.innerHTML = element;
+            }
             if (typeof (this.tableFilters[row].value) == 'object' && this.tableFilters[row].value.indexOf(cb.value) != -1) {
                 cb.setAttribute("checked", "checked");
             }
@@ -267,7 +318,7 @@ class JsonTable {
                     element = this.localTexts["not_a_date"];
                 }
             }
-            preview.innerHTML = element;
+            
             li.append(cb);
             li.append(preview);
             listTarget.append(li);
@@ -298,10 +349,11 @@ class JsonTable {
         let row = document.createElement("thead");
         let ascIcon = document.createElement("div");
         ascIcon.classList.add("asc");
-        ascIcon.innerText = "↑";
+        ascIcon.innerHTML = '<svg fill="#000000" width="20px" height="15px" viewBox="0 0 32 32"><path d="M8 20.695l7.997-11.39L24 20.695z"/></svg>';
         let descIcon = document.createElement("div");
         descIcon.classList.add("desc");
-        descIcon.innerText = "↓";
+        descIcon.innerHTML = '<svg fill="#000000" width="20px" height="15px" viewBox="0 0 32 32"><path d="M24 11.305l-7.997 11.39L8 11.305z"/></svg>';
+        let filterContainer = document.createElement("div");
 
 
         items.forEach((element, index) => {
@@ -343,7 +395,7 @@ class JsonTable {
             }
             let filterIcon = document.createElement("div");
             filterIcon.classList.add("filter");
-            filterIcon.innerText = "≡";
+            filterIcon.innerHTML = '<svg  class="filtericon" width="20px" height="15px" viewBox="0 0 512 512"><polygon points="0 48 192 288 192 416 320 464 320 288 512 48 0 48"/></svg>';
             filterIcon.addEventListener("click", () => {
                 this.showFilters(index);
             })
@@ -422,7 +474,8 @@ class JsonTable {
             cellFilters.className = 'filter-wrapper';
             headerTitle.append(ascIcon.cloneNode(1));
             headerTitle.append(descIcon.cloneNode(1));
-            cell.append(cellFilters);
+            this.filterWrappers.push(cellFilters);
+            filterContainer.append(cellFilters);
             cell.append(cellVisible);
             this.headers.push(cell);
             row.append(cell);
@@ -436,23 +489,32 @@ class JsonTable {
 
             // row.append(cellFilters);
         });
+        filterContainer.classList.add("filter-container");
+        this.tableWrapper.append(filterContainer);
         return row;
     }
+
+    
     makeRow(items) {
         let row = document.createElement("tr");
         items.forEach((element, index) => {
             if (index == this.styleRow) {
                 if (element != " ") {
-                    row.classList.add(element);
+                    if (element != " ") {
+                        element.split('|').forEach((word) => {
+                            row.classList.add(word.replace(" ", "-"));
+                        })
+                    }
                 }
                 return;
             }
             if (index == this.idRow) {
-                row.classList.add(element);
+                row.setAttribute("id",element);
                 return;
             }
             if (this.numberCols.indexOf(index) != -1) {
-                element = parseFloat(element).toLocaleString(this.lang);
+                element = parseFloat(element) || 0;
+                element = element.toLocaleString(this.lang);
             }
             let cell = document.createElement("td");
             if (this.dateCols.indexOf(index) != -1) {
@@ -479,6 +541,52 @@ class JsonTable {
         });
         return row;
     }
+
+    calculateStats = function () {
+        this.statTable.innerHTML = "<tr><th>" + this.localTexts["column"] + "</th><th>" + this.localTexts["total"] + "</th><th>" + this.localTexts["avg"] + "</th><th>" + this.localTexts["min"] + "</th><th>" + this.localTexts["max"] + "</th><th>" + this.localTexts["percentage"] +"</th><tr>";
+    this.stats = [];
+    this.numberCols.forEach((index) => {
+        var sum = this.resultarray.reduce((accum, item) => accum + (parseFloat(Object.values(item)[index]) || 0), 0), index;
+        var total_sum = this.data.reduce((accum, item) => accum + (parseFloat(Object.values(item)[index]) || 0), 0), index;
+
+        var filteredStat = {
+            name: Object.keys(this.resultarray[0])[index].replace("_format:number", ""),
+            sum: sum,
+            avg: sum / this.resultarray.length,
+            min: Math.min(...this.resultarray.map(item => parseFloat(Object.values(item)[index] || 0))),
+            max: Math.max(...this.resultarray.map(item => parseFloat(Object.values(item)[index] || 0))),
+            total_sum: total_sum,
+            total_avg: total_sum / this.data.length,
+            total_min: Math.min(...this.data.map(item => parseFloat(Object.values(item)[index] || 0))),
+            total_max: Math.max(...this.data.map(item => parseFloat(Object.values(item)[index] || 0))),
+            percentage: sum / total_sum * 100,
+        };
+        this.stats.push(filteredStat);
+    });
+    this.stats.forEach((stat) => {
+        let row = document.createElement("tr");
+        let cell = document.createElement("td");
+        cell.innerText = stat.name;
+        row.append(cell);
+        cell = document.createElement("td");
+        cell.innerText = stat.sum.toLocaleString(this.lang) + " / " + stat.total_sum.toLocaleString(this.lang);
+        row.append(cell);
+        cell = document.createElement("td");
+        cell.innerText = stat.avg.toLocaleString(this.lang) + " / " + stat.total_avg.toLocaleString(this.lang);
+        row.append(cell);
+        cell = document.createElement("td");
+        cell.innerText = stat.min.toLocaleString(this.lang) + " / " + stat.total_min.toLocaleString(this.lang);
+        row.append(cell);
+        cell = document.createElement("td");
+        cell.innerText = stat.max.toLocaleString(this.lang) + " / " + stat.total_max.toLocaleString(this.lang);
+        row.append(cell);
+        cell = document.createElement("td");
+        cell.innerText = stat.percentage.toLocaleString(this.lang) + " %";
+        row.append(cell);
+        this.statTable.append(row);
+    });
+}
+
     build() {
         this.rows.forEach(row => {
             row.remove();
@@ -575,5 +683,7 @@ class JsonTable {
         }
         this.pageSelect.value = this.page;
 
+        
+        this.calculateStats();
     }
 }
