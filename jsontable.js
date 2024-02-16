@@ -8,6 +8,7 @@
 // Buttons for rows with custom click events
 // Select rows and actions for selection
 // Export to Excel, CSV
+// Pivot Table ?
 
 class JsonTable {
     constructor(element, settings) {
