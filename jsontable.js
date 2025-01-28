@@ -1,18 +1,31 @@
-// Todo:
-// Save settings and filters to cookie with uniqkey (?)
-// Show/Hide Cols
-// Select/Deselect All and Search Bar for filters
-// Add Number of records to filter list
-// Sum/Avg/Min./Max. Numbers to footer row or an info window
-// Pop-up window for long texts
-// Buttons for rows with custom click events
-// Select rows and actions for selection
-// Export to Excel, CSV
+/**
+ * JsonTable - A JavaScript class for creating interactive data tables
+ * Features:
+ * - Sorting
+ * - Filtering
+ * - Pagination
+ * - Statistics
+ * - Search
+ * - Localization support
+ */
 
 class JsonTable {
     constructor(element, settings) {
+        // Initialize settings with defaults
+        this.initializeSettings(settings);
+        
+        // Initialize properties
+        this.parent = document.querySelector(element);
+        this.initializeProperties();
+        
+        // Create UI components
+        this.createUIComponents();
+        
+        // Setup event listeners
+        this.setupEventListeners();
+    }
 
-        // settings
+    initializeSettings(settings) {
         this.innerHTML = settings.innerHTML || 1;
         this.numberOfRow = settings.numberOfRow || 10;
         this.lang = settings.lang || 'tr-TR';
@@ -20,121 +33,153 @@ class JsonTable {
         this.dateCols = settings.dateCols || [];
         this.sortBy = settings.sortBy || 0;
         this.order = settings.order || 1;
-
-       
-
-
-
-
-
-        // localizations
-        
-   
         this.localTexts = jsonTableLocalText;
+    }
 
-      
-        this.parent = document.querySelector(element);
+    initializeProperties() {
         this.tableWrapper = document.createElement("div");
         this.tableWrapper.classList.add("table-wrapper");
         this.table = document.createElement("table");
+        this.table.classList.add("table", "jsontable");
+        
         this.searchText = "";
         this.styleRow = -1;
         this.idRow = -1;
         this.page = 0;
         this.filteredUniq = [];
         this.filterSavedState = [];
-        this.tableFilters = [];
+        this.tableFilters = [{
+            op: 'na',
+            value: '',
+            value2: ''
+        }];
         this.filterWrappers = [];
+        this.headers = [];
+        this.rows = [];
+    }
 
-        //creating DOM
+    createUIComponents() {
+        // Create panels
+        this.createPanels();
+        
+        // Create search and filter components
+        this.createSearchComponents();
+        
+        // Create pagination components
+        this.createPaginationComponents();
+        
+        // Append components to DOM
+        this.appendComponentsToDOM();
+    }
+
+    createPanels() {
         this.topPanel = document.createElement("div");
         this.bottomPanel = document.createElement("div");
-
         this.counter = document.createElement("span");
         this.pagination = document.createElement("div");
-
-        this.searchbar = document.createElement("input");
-        this.searchbar.classList.add("searchbar");
-        
+        this.pagination.classList.add("pagination-wrapper");
         this.statTable = document.createElement("table");
         this.statTable.classList.add("stat-table");
+    }
 
+    createSearchComponents() {
+        // Create searchbar
+        this.searchbar = document.createElement("input");
+        this.searchbar.classList.add("searchbar");
         this.searchbar.setAttribute("placeholder", this.localTexts["search"]);
 
-        this.parent.append(this.topPanel);
-        this.parent.append(this.tableWrapper);
-        this.tableWrapper.append(this.table);
-        this.parent.append(this.bottomPanel);
+        // Create number of rows select
+        this.createNumberOfRowsSelect();
+        
+        // Create clear filters button
+        this.createClearFiltersButton();
+    }
 
-        this.topPanel.append(this.searchbar);
-        this.bottomPanel.append(this.counter);
-        this.bottomPanel.append(this.pagination);
-        this.bottomPanel.append(this.statTable);
-
+    createNumberOfRowsSelect() {
         let numberOfRowsSelect = document.createElement("select");
         numberOfRowsSelect.classList.add("nor-select");
-        for (const opt of [
+        
+        const options = [
             [10, "10"],
             [25, "25"],
             [50, "50"],
             [-1, this.localTexts["all"]]
-        ]) {
-            let option = document.createElement("option");
-            option.setAttribute("value", opt[0]);
-            option.innerText = opt[1];
-            numberOfRowsSelect.append(option);
-        }
-        numberOfRowsSelect.addEventListener("change", () => this.setNumberOfRows(numberOfRowsSelect.value));
+        ];
 
-        this.topPanel.append(document.createTextNode(this.localTexts["number_of_rows"]));
-        this.topPanel.append(numberOfRowsSelect);
-        
+        options.forEach(([value, text]) => {
+            let option = document.createElement("option");
+            option.setAttribute("value", value);
+            option.innerText = text;
+            numberOfRowsSelect.append(option);
+        });
+
+        numberOfRowsSelect.addEventListener("change", () => this.setNumberOfRows(numberOfRowsSelect.value));
+        this.numberOfRowsSelect = numberOfRowsSelect;
+    }
+
+    createClearFiltersButton() {
         this.clearFilters = document.createElement("button");
         this.clearFilters.innerText = this.localTexts["clear_filters"];
         this.clearFilters.classList.add("clear-filters");
-        this.clearFilters.addEventListener("click", () => this.clearAllFilters());
-        this.topPanel.append(this.clearFilters);
+    }
 
-
-        let prevBtn = document.createElement("button");
-        prevBtn.innerText = "<";
-        prevBtn.addEventListener("click", () => this.gotopage("p"));
-
-        this.pagination.append(prevBtn);
-
+    createPaginationComponents() {
+        // Create navigation buttons
+        const prevBtn = this.createPaginationButton("<", "p");
+        const nextBtn = this.createPaginationButton(">", "n");
+        
+        // Create page select
         this.pageSelect = document.createElement("select");
-        this.pageSelect.addEventListener("change", () => this.gotopage(this.pageSelect.value));
+        
+        // Append pagination components
+        this.pagination.append(prevBtn, this.pageSelect, nextBtn);
+    }
+
+    createPaginationButton(text, action) {
+        const btn = document.createElement("button");
+        btn.innerText = text;
+        btn.addEventListener("click", () => this.gotopage(action));
+        return btn;
+    }
+
+    appendComponentsToDOM() {
+        // Append main components
+        this.parent.append(this.topPanel, this.tableWrapper, this.bottomPanel);
+        this.tableWrapper.append(this.table);
+        
+        // Append search components
+        this.topPanel.append(
+            this.searchbar,
+            document.createTextNode(this.localTexts["number_of_rows"]),
+            this.numberOfRowsSelect,
+            this.clearFilters
+        );
+        
+        // Append bottom panel components
+        this.bottomPanel.append(this.counter, this.pagination, this.statTable);
+    }
+
+    setupEventListeners() {
+        // Setup search event
         this.searchbar.addEventListener("input", () => {
             this.searchText = this.searchbar.value;
             this.build();
         });
-        this.pagination.append(this.pageSelect);
 
-        let nextBtn = document.createElement("button");
-        nextBtn.innerText = ">";
-        nextBtn.addEventListener("click", () => this.gotopage("n"));
-        this.pagination.append(nextBtn);
-        this.pagination.classList.add("pagination-wrapper");
+        // Setup clear filters event
+        this.clearFilters.addEventListener("click", () => this.clearAllFilters());
 
+        // Setup page select event
+        this.pageSelect.addEventListener("change", () => this.gotopage(this.pageSelect.value));
 
-
-        this.table.classList.add("table");
-        this.table.classList.add("jsontable");
-
-        // document.addEventListener("click", function (event) {
-        //     if (event.target.closest(".showing-filters")) return
-        //     document.querySelectorAll('.showing-filters').forEach(el => {
-        //         el.classList.remove("showing-filters");
-        //     });
-        // })
-        document.addEventListener("click", function (event) {
-            if (event.target.closest(".showing-filters") || event.target.closest(".filter-container")) return
+        // Setup document click event for filters
+        document.addEventListener("click", (event) => {
+            if (event.target.closest(".showing-filters") || event.target.closest(".filter-container")) return;
             document.querySelectorAll('.filter-wrapper').forEach(el => {
                 el.classList.remove("visible");
             });
-        })
+        });
     }
-
 
     localText(key, arr) {
         let str=this.localTexts[key];
@@ -182,47 +227,38 @@ class JsonTable {
     }
 
     filterArray(filter, value) {
-        if (typeof filter.value == 'undefined' || filter.value == '') {
-            return 1
-        };
+        // Guard clause for undefined filter
+        if (!filter || typeof filter.value === 'undefined' || filter.value === '') {
+            return true;
+        }
+
         switch (filter.op) {
             case "na":
-                return 1;
-                break; 
+                return true;
             case "gt":
                 return value > filter.value;
-                break;
             case "lt":
                 return value < filter.value;
-                break;
             case "eq":
                 return value == filter.value;
-                break;
             case "bt":
                 return value > filter.value && value < filter.value2;
-                break;
             case "inc":
                 if (value == null) {
-                    return 0;
+                    return false;
                 }
-                return value.toString().toLocaleLowerCase(this.lang).includes(filter.value.toString().toLocaleLowerCase(this.lang));
-                break;
+                return value.toString().toLocaleLowerCase(this.lang)
+                    .includes(filter.value.toString().toLocaleLowerCase(this.lang));
             case "select":
-                if(filter.value == "<empty>"){
-                    return value == "" || value == null;
+                if (filter.value === "<empty>") {
+                    return value === "" || value == null;
                 }
                 if (value == null) {
-                    return 0;
+                    return false;
                 }
-                if (filter.value.indexOf(value.toString()) != -1) {
-                    return 1;
-                } else {
-                    return 0;
-                }
-                break;
+                return Array.isArray(filter.value) && filter.value.indexOf(value.toString()) !== -1;
             default:
-                return 1;
-                break;
+                return true;
         }
     }
 
@@ -355,7 +391,6 @@ class JsonTable {
         descIcon.innerHTML = '<svg fill="#000000" width="20px" height="15px" viewBox="0 0 32 32"><path d="M24 11.305l-7.997 11.39L8 11.305z"/></svg>';
         let filterContainer = document.createElement("div");
 
-
         items.forEach((element, index) => {
             this.tableFilters.push({
                 op: 'na',
@@ -386,7 +421,6 @@ class JsonTable {
             let headerTitle = document.createElement("span");
             let cellFilters = document.createElement("div");
 
-        
             cellVisible.classList.add('header-text');
             if (this.innerHTML) {
                 headerTitle.innerHTML = element;
@@ -480,7 +514,6 @@ class JsonTable {
             this.headers.push(cell);
             row.append(cell);
 
-
             let clearFilter = document.createElement("button");
             clearFilter.innerText = this.localTexts["clear_filters"];
             clearFilter.classList.add("clear-filters");
@@ -494,196 +527,252 @@ class JsonTable {
         return row;
     }
 
-    
     makeRow(items) {
         let row = document.createElement("tr");
         items.forEach((element, index) => {
-            if (index == this.styleRow) {
-                if (element != " ") {
-                    if (element != " ") {
-                        element.split('|').forEach((word) => {
-                            row.classList.add(word.replace(" ", "-"));
-                        })
-                    }
-                }
-                return;
-            }
-            if (index == this.idRow) {
-                row.setAttribute("id",element);
-                return;
-            }
-            if (this.numberCols.indexOf(index) != -1) {
-                element = parseFloat(element) || 0;
-                element = element.toLocaleString(this.lang);
-            }
-            let cell = document.createElement("td");
-            if (this.dateCols.indexOf(index) != -1) {
-                let dd = new Date(element);
-                if (element == '0000-00-00') {
-                    element = this.localTexts["not_a_date"];
-                }
-                if (dd != "Invalid Date" && element != null) {
-                    element = dd.toLocaleDateString(this.lang);
-                } else {
-                    element = this.localTexts["not_a_date"];
-                }
-            }
-            if (/^(ftp|http|https):\/\/[^ "]+$/.test(element)) {
-                element = "<a href='" + element + "'>" + element + "</a>";
-            }
-
-            if (this.innerHTML) {
-                cell.innerHTML = element;
-            } else {
-                cell.innerText = element;
-            }
+            // Handle special rows
+            if (this.handleSpecialRows(row, element, index)) return;
+            
+            // Format element based on column type
+            element = this.formatElement(element, index);
+            
+            // Create and append cell
+            let cell = this.createCell(element);
             row.append(cell);
         });
         return row;
     }
 
-    calculateStats = function () {
-        this.statTable.innerHTML = "<tr><th>" + this.localTexts["column"] + "</th><th>" + this.localTexts["total"] + "</th><th>" + this.localTexts["avg"] + "</th><th>" + this.localTexts["min"] + "</th><th>" + this.localTexts["max"] + "</th><th>" + this.localTexts["percentage"] +"</th><tr>";
-    this.stats = [];
-    this.numberCols.forEach((index) => {
-        var sum = this.resultarray.reduce((accum, item) => accum + (parseFloat(Object.values(item)[index]) || 0), 0), index;
-        var total_sum = this.data.reduce((accum, item) => accum + (parseFloat(Object.values(item)[index]) || 0), 0), index;
+    handleSpecialRows(row, element, index) {
+        if (index === this.styleRow) {
+            if (element !== " ") {
+                element.split('|').forEach(word => {
+                    row.classList.add(word.replace(" ", "-"));
+                });
+            }
+            return true;
+        }
+        if (index === this.idRow) {
+            row.setAttribute("id", element);
+            return true;
+        }
+        return false;
+    }
 
-        var filteredStat = {
-            name: Object.keys(this.resultarray[0])[index].replace("_format:number", ""),
-            sum: sum,
-            avg: sum / this.resultarray.length,
-            min: Math.min(...this.resultarray.map(item => parseFloat(Object.values(item)[index] || 0))),
-            max: Math.max(...this.resultarray.map(item => parseFloat(Object.values(item)[index] || 0))),
-            total_sum: total_sum,
-            total_avg: total_sum / this.data.length,
-            total_min: Math.min(...this.data.map(item => parseFloat(Object.values(item)[index] || 0))),
-            total_max: Math.max(...this.data.map(item => parseFloat(Object.values(item)[index] || 0))),
-            percentage: sum / total_sum * 100,
+    formatElement(element, index) {
+        if (this.numberCols.indexOf(index) !== -1) {
+            element = parseFloat(element) || 0;
+            element = element.toLocaleString(this.lang);
+        } else if (this.dateCols.indexOf(index) !== -1) {
+            element = this.formatDate(element);
+        } else if (this.isUrl(element)) {
+            element = `<a href='${element}'>${element}</a>`;
+        }
+        return element;
+    }
+
+    formatDate(element) {
+        if (element === '0000-00-00') return this.localTexts["not_a_date"];
+        
+        const date = new Date(element);
+        if (date !== "Invalid Date" && element != null) {
+            return date.toLocaleDateString(this.lang);
+        }
+        return this.localTexts["not_a_date"];
+    }
+
+    isUrl(str) {
+        return /^(ftp|http|https):\/\/[^ "]+$/.test(str);
+    }
+
+    createCell(element) {
+        const cell = document.createElement("td");
+        if (this.innerHTML) {
+            cell.innerHTML = element;
+        } else {
+            cell.innerText = element;
+        }
+        return cell;
+    }
+
+    calculateStats() {
+        this.initializeStatsTable();
+        this.stats = [];
+        
+        this.numberCols.forEach(index => {
+            const stat = this.calculateColumnStats(index);
+            this.stats.push(stat);
+        });
+        
+        this.renderStats();
+    }
+
+    initializeStatsTable() {
+        const headers = ["column", "total", "avg", "min", "max", "percentage"]
+            .map(key => this.localTexts[key])
+            .join("</th><th>");
+            
+        this.statTable.innerHTML = `<tr><th>${headers}</th></tr>`;
+    }
+
+    calculateColumnStats(index) {
+        const values = {
+            filtered: this.resultarray.map(item => parseFloat(Object.values(item)[index]) || 0),
+            total: this.data.map(item => parseFloat(Object.values(item)[index]) || 0)
         };
-        this.stats.push(filteredStat);
-    });
-    this.stats.forEach((stat) => {
-        let row = document.createElement("tr");
-        let cell = document.createElement("td");
-        cell.innerText = stat.name;
-        row.append(cell);
-        cell = document.createElement("td");
-        cell.innerText = stat.sum.toLocaleString(this.lang) + " / " + stat.total_sum.toLocaleString(this.lang);
-        row.append(cell);
-        cell = document.createElement("td");
-        cell.innerText = stat.avg.toLocaleString(this.lang) + " / " + stat.total_avg.toLocaleString(this.lang);
-        row.append(cell);
-        cell = document.createElement("td");
-        cell.innerText = stat.min.toLocaleString(this.lang) + " / " + stat.total_min.toLocaleString(this.lang);
-        row.append(cell);
-        cell = document.createElement("td");
-        cell.innerText = stat.max.toLocaleString(this.lang) + " / " + stat.total_max.toLocaleString(this.lang);
-        row.append(cell);
-        cell = document.createElement("td");
-        cell.innerText = stat.percentage.toLocaleString(this.lang) + " %";
-        row.append(cell);
-        this.statTable.append(row);
-    });
-}
+
+        const sum = values.filtered.reduce((a, b) => a + b, 0);
+        const totalSum = values.total.reduce((a, b) => a + b, 0);
+
+        return {
+            name: Object.keys(this.resultarray[0])[index].replace("_format:number", ""),
+            sum,
+            avg: sum / this.resultarray.length,
+            min: Math.min(...values.filtered),
+            max: Math.max(...values.filtered),
+            total_sum: totalSum,
+            total_avg: totalSum / this.data.length,
+            total_min: Math.min(...values.total),
+            total_max: Math.max(...values.total),
+            percentage: (sum / totalSum) * 100
+        };
+    }
+
+    renderStats() {
+        this.stats.forEach(stat => {
+            const row = document.createElement("tr");
+            const cells = [
+                stat.name,
+                `${stat.sum.toLocaleString(this.lang)} / ${stat.total_sum.toLocaleString(this.lang)}`,
+                `${stat.avg.toLocaleString(this.lang)} / ${stat.total_avg.toLocaleString(this.lang)}`,
+                `${stat.min.toLocaleString(this.lang)} / ${stat.total_min.toLocaleString(this.lang)}`,
+                `${stat.max.toLocaleString(this.lang)} / ${stat.total_max.toLocaleString(this.lang)}`,
+                `${stat.percentage.toLocaleString(this.lang)} %`
+            ];
+
+            cells.forEach(text => {
+                const cell = document.createElement("td");
+                cell.innerText = text;
+                row.append(cell);
+            });
+
+            this.statTable.append(row);
+        });
+    }
 
     build() {
-        this.rows.forEach(row => {
-            row.remove();
-        })
+        this.clearTable();
+        this.updateHeaderFilters();
+        
+        const resultarray = this.filterData();
+        this.updateFilteredUnique(resultarray);
+        
+        this.sortData(resultarray);
+        this.renderTable(resultarray);
+        
+        this.updatePagination(resultarray);
+        this.calculateStats();
+    }
 
+    clearTable() {
+        this.rows.forEach(row => row.remove());
+    }
+
+    updateHeaderFilters() {
         this.headers.forEach((header, index) => {
-            if (this.tableFilters.length > 1 && this.tableFilters[index].op != "na" && this.tableFilters[index].value != "") {
-                header.classList.add("filtered");
-            } else {
-                header.classList.remove("filtered");
-
-            }
+            const isFiltered = this.tableFilters.length > 1 && 
+                             this.tableFilters[index].op !== "na" && 
+                             this.tableFilters[index].value !== "";
+                             
+            header.classList.toggle("filtered", isFiltered);
         });
+    }
 
-
-        this.filteredUniq = [];
-        let resultarray = this.data.filter(row => {
-            let values = Object.values(row);
-
-            for (let index = 0; index < values.length; index++) {
-
-                if (this.tableFilters.length > 1 && !this.filterArray(this.tableFilters[index], values[index])) {
-                    return 0;
-                }
-            }
-            return 1;
-        });
-
-        if (this.searchText != "") {
-            resultarray = resultarray.filter(row => {
-                let values = Object.values(row);
-                for (let index = 0; index < values.length; index++) {
-                    if (values[index] != null && values[index].toString().toLocaleLowerCase(this.lang).includes(this.searchText.toString().toLocaleLowerCase(this.lang))) {
-                        return 1;
-                    }
-                }
-                return 0;
+    filterData() {
+        let filtered = this.data.filter(row => {
+            const values = Object.values(row);
+            return values.every((value, index) => {
+                const filter = this.tableFilters[index];
+                return !filter || this.filterArray(filter, value);
             });
+        });
+
+        if (this.searchText) {
+            filtered = this.applySearch(filtered);
         }
 
+        return filtered;
+    }
+
+    applySearch(data) {
+        return data.filter(row => {
+            const values = Object.values(row);
+            return values.some(value => 
+                value != null && 
+                value.toString().toLocaleLowerCase(this.lang)
+                    .includes(this.searchText.toString().toLocaleLowerCase(this.lang))
+            );
+        });
+    }
+
+    updateFilteredUnique(resultarray) {
         resultarray.forEach(row => {
-            let values = Object.values(row);
-            for (let index = 0; index < values.length; index++) {
-                if (typeof this.filteredUniq[index] == 'undefined') {
+            const values = Object.values(row);
+            values.forEach((value, index) => {
+                if (!this.filteredUniq[index]) {
                     this.filteredUniq[index] = [];
                 }
-                if (this.filteredUniq[index].indexOf(values[index]) == -1) {
-                    this.filteredUniq[index].push(values[index]);
+                if (!this.filteredUniq[index].includes(value)) {
+                    this.filteredUniq[index].push(value);
                 }
-            }
+            });
         });
+    }
 
-        let nr = 0;
-
+    sortData(resultarray) {
         resultarray.sort((a, b) => {
-            a = Object.values(a)[this.sortBy];
-            b = Object.values(b)[this.sortBy];
-            var ret = 0;
-            if (a < b) {
-                var ret = -1;
-            } else if (a > b) {
-                var ret = 1;
-            }
-            return this.order ? ret : -1 * ret;
-
+            const valA = Object.values(a)[this.sortBy];
+            const valB = Object.values(b)[this.sortBy];
+            
+            const comparison = valA < valB ? -1 : valA > valB ? 1 : 0;
+            return this.order ? comparison : -comparison;
         });
+    }
 
-
-        if (this.page > resultarray.length / this.numberOfRow) {
-            this.page = 0;
-        }
-
-
+    renderTable(resultarray) {
+        let rowCount = 0;
         resultarray.forEach(element => {
-            if (!nr && !this.headers.length) {
+            if (!rowCount && !this.headers.length) {
                 this.table.append(this.makeHeader(Object.keys(element)));
             }
-            if (this.page * this.numberOfRow <= nr && nr < (this.page + 1) * this.numberOfRow) {
-                let newrow = this.makeRow(Object.values(element));
+            
+            const isInPage = this.page * this.numberOfRow <= rowCount && 
+                           rowCount < (this.page + 1) * this.numberOfRow;
+                           
+            if (isInPage) {
+                const newrow = this.makeRow(Object.values(element));
                 this.rows.push(newrow);
                 this.table.append(newrow);
             }
-            nr++;
+            rowCount++;
         });
+        
         this.resultarray = resultarray;
-        this.counter.innerText = this.localText("number_of_shown_records", [this.data.length, resultarray.length]);
-        this.pageSelect.innerHTML = "";
-        for (let index = 0; index < resultarray.length / this.numberOfRow; index++) {
-            let opt = document.createElement("option");
-            opt.innerText = index + 1;
-            opt.value = index;
+        this.counter.innerText = this.localText("number_of_shown_records", 
+            [this.data.length, resultarray.length]);
+    }
 
+    updatePagination(resultarray) {
+        const pageCount = Math.ceil(resultarray.length / this.numberOfRow);
+        
+        this.pageSelect.innerHTML = "";
+        for (let i = 0; i < pageCount; i++) {
+            const opt = document.createElement("option");
+            opt.innerText = i + 1;
+            opt.value = i;
             this.pageSelect.append(opt);
         }
-        this.pageSelect.value = this.page;
-
         
-        this.calculateStats();
+        this.pageSelect.value = this.page;
     }
 }
