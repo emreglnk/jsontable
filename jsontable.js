@@ -251,11 +251,17 @@ class JsonTable {
         // Auto-detect numeric columns if not specified in settings
         if (Object.keys(this.columnTypes).length === 0 && data.length > 0) {
             const firstRow = data[0];
-            Object.keys(firstRow).forEach(key => {
+            Object.keys(firstRow).forEach((key, index) => {
                 const value = firstRow[key];
                 // Check if the value is numeric
                 if (typeof value === 'number' || (typeof value === 'string' && !isNaN(value) && value.trim() !== '')) {
-                    this.columnTypes[key] = 'number';
+                    // Check if next column is currency code
+                    const nextKey = Object.keys(firstRow)[index + 1];
+                    if (nextKey && nextKey.toLowerCase().includes('döviz') || nextKey.toLowerCase().includes('currency')) {
+                        this.columnTypes[key] = 'currency';
+                    } else {
+                        this.columnTypes[key] = 'number';
+                    }
                 } else if (Object.prototype.toString.call(new Date(value)) === '[object Date]' && !isNaN(new Date(value).getTime())) {
                     this.columnTypes[key] = 'date';
                 }
@@ -442,6 +448,140 @@ class JsonTable {
         });
     }
 
+    formatElement(element, index) {
+        if (this.columnTypes[Object.keys(this.data[0])[index]] === "number") {
+            element = parseFloat(element) || 0;
+            element = element.toLocaleString(this.lang);
+        } else if (this.columnTypes[Object.keys(this.data[0])[index]] === "date") {
+            element = this.formatDate(element);
+        } else if (this.columnTypes[Object.keys(this.data[0])[index]] === "currency") {
+            element = parseFloat(element) || 0;
+            // Get the currency code from the next column if available
+            const currencyCode = this.data[0][Object.keys(this.data[0])[index + 1]] || 'TRY';
+            element = new Intl.NumberFormat(this.lang, { 
+                style: 'currency', 
+                currency: currencyCode 
+            }).format(element);
+        } else if (this.isUrl(element)) {
+            element = `<a href='${element}'>${element}</a>`;
+        }
+        return element;
+    }
+
+    formatDate(element) {
+        if (element === '0000-00-00') return this.localText("not_a_date", []);
+        
+        const date = new Date(element);
+        if (date !== "Invalid Date" && element != null) {
+            return date.toLocaleDateString(this.lang);
+        }
+        return this.localText("not_a_date", []);
+    }
+
+    isUrl(str) {
+        return /^(ftp|http|https):\/\/[^ "]+$/.test(str);
+    }
+
+    createCell(element) {
+        const cell = document.createElement("td");
+        if (this.innerHTML) {
+            cell.innerHTML = element;
+        } else {
+            cell.innerText = this.localText(element, []);
+        }
+        return cell;
+    }
+
+    calculateStats() {
+        // Clear existing stats
+        this.statTable.innerHTML = '';
+        
+        this.initializeStatsTable();
+        this.stats = [];
+        
+        Object.keys(this.columnTypes).forEach(key => {
+            if (this.columnTypes[key] === "number") {
+                const stat = this.calculateColumnStats(key);
+                if (stat) {
+                    this.stats.push(stat);
+                }
+            }
+        });
+        
+        this.renderStats();
+    }
+
+    initializeStatsTable() {
+        const headers = ["column", "total", "avg", "min", "max", "percentage"]
+            .map(key => this.localText(key, []))
+            .join("</th><th>");
+            
+        this.statTable.innerHTML = `<tr><th>${headers}</th></tr>`;
+    }
+
+    calculateColumnStats(key) {
+        if (!this.data.length || !this.data[0].hasOwnProperty(key)) {
+            return null; // Return null or an appropriate default if the key doesn't exist
+        }
+
+        const values = {
+            filtered: this.resultarray.map(item => parseFloat(item[key]) || 0),
+            total: this.data.map(item => parseFloat(item[key]) || 0)
+        };
+
+        const sum = values.filtered.reduce((a, b) => a + b, 0);
+        const totalSum = values.total.reduce((a, b) => a + b, 0);
+
+        return {
+            name: key, // Assuming the key is now clean without any suffix
+            sum,
+            avg: this.resultarray.length ? sum / this.resultarray.length : 0,
+            min: Math.min(...values.filtered),
+            max: Math.max(...values.filtered),
+            total_sum: totalSum,
+            total_avg: this.data.length ? totalSum / this.data.length : 0,
+            total_min: Math.min(...values.total),
+            total_max: Math.max(...values.total),
+            percentage: totalSum ? (sum / totalSum) * 100 : 0
+        };
+    }
+
+    renderStats() {
+        this.stats.forEach(stat => {
+            const row = document.createElement("tr");
+            const cells = [
+                stat.name,
+                `${stat.sum.toLocaleString(this.lang)} / ${stat.total_sum.toLocaleString(this.lang)}`,
+                `${stat.avg.toLocaleString(this.lang)} / ${stat.total_avg.toLocaleString(this.lang)}`,
+                `${stat.min.toLocaleString(this.lang)} / ${stat.total_min.toLocaleString(this.lang)}`,
+                `${stat.max.toLocaleString(this.lang)} / ${stat.total_max.toLocaleString(this.lang)}`,
+                `${stat.percentage.toLocaleString(this.lang)} %`
+            ];
+
+            cells.forEach(text => {
+                const cell = document.createElement("td");
+                cell.innerText = this.localText(text, []);
+                row.append(cell);
+            });
+
+            this.statTable.append(row);
+        });
+    }
+
+    gotopage(page) {
+        // if page is equal "n" go next page if page is equal "p" go prev page
+
+        if (page == "n") {
+            this.page++;
+        } else if (page == "p") {
+            this.page--;
+        } else {
+            this.page = page;
+        }
+        this.build();
+
+    }
+
     makeHeader(items) {
         let row = document.createElement("thead");
         let ascIcon = document.createElement("div");
@@ -613,118 +753,6 @@ class JsonTable {
         return false;
     }
 
-    formatElement(element, index) {
-        if (this.columnTypes[Object.keys(this.data[0])[index]] === "number") {
-            element = parseFloat(element) || 0;
-            element = element.toLocaleString(this.lang);
-        } else if (this.columnTypes[Object.keys(this.data[0])[index]] === "date") {
-            element = this.formatDate(element);
-        } else if (this.isUrl(element)) {
-            element = `<a href='${element}'>${element}</a>`;
-        }
-        return element;
-    }
-
-    formatDate(element) {
-        if (element === '0000-00-00') return this.localText("not_a_date", []);
-        
-        const date = new Date(element);
-        if (date !== "Invalid Date" && element != null) {
-            return date.toLocaleDateString(this.lang);
-        }
-        return this.localText("not_a_date", []);
-    }
-
-    isUrl(str) {
-        return /^(ftp|http|https):\/\/[^ "]+$/.test(str);
-    }
-
-    createCell(element) {
-        const cell = document.createElement("td");
-        if (this.innerHTML) {
-            cell.innerHTML = element;
-        } else {
-            cell.innerText = this.localText(element, []);
-        }
-        return cell;
-    }
-
-    calculateStats() {
-        // Clear existing stats
-        this.statTable.innerHTML = '';
-        
-        this.initializeStatsTable();
-        this.stats = [];
-        
-        Object.keys(this.columnTypes).forEach(key => {
-            if (this.columnTypes[key] === "number") {
-                const stat = this.calculateColumnStats(key);
-                if (stat) {
-                    this.stats.push(stat);
-                }
-            }
-        });
-        
-        this.renderStats();
-    }
-
-    initializeStatsTable() {
-        const headers = ["column", "total", "avg", "min", "max", "percentage"]
-            .map(key => this.localText(key, []))
-            .join("</th><th>");
-            
-        this.statTable.innerHTML = `<tr><th>${headers}</th></tr>`;
-    }
-
-    calculateColumnStats(key) {
-        if (!this.data.length || !this.data[0].hasOwnProperty(key)) {
-            return null; // Return null or an appropriate default if the key doesn't exist
-        }
-
-        const values = {
-            filtered: this.resultarray.map(item => parseFloat(item[key]) || 0),
-            total: this.data.map(item => parseFloat(item[key]) || 0)
-        };
-
-        const sum = values.filtered.reduce((a, b) => a + b, 0);
-        const totalSum = values.total.reduce((a, b) => a + b, 0);
-
-        return {
-            name: key, // Assuming the key is now clean without any suffix
-            sum,
-            avg: this.resultarray.length ? sum / this.resultarray.length : 0,
-            min: Math.min(...values.filtered),
-            max: Math.max(...values.filtered),
-            total_sum: totalSum,
-            total_avg: this.data.length ? totalSum / this.data.length : 0,
-            total_min: Math.min(...values.total),
-            total_max: Math.max(...values.total),
-            percentage: totalSum ? (sum / totalSum) * 100 : 0
-        };
-    }
-
-    renderStats() {
-        this.stats.forEach(stat => {
-            const row = document.createElement("tr");
-            const cells = [
-                stat.name,
-                `${stat.sum.toLocaleString(this.lang)} / ${stat.total_sum.toLocaleString(this.lang)}`,
-                `${stat.avg.toLocaleString(this.lang)} / ${stat.total_avg.toLocaleString(this.lang)}`,
-                `${stat.min.toLocaleString(this.lang)} / ${stat.total_min.toLocaleString(this.lang)}`,
-                `${stat.max.toLocaleString(this.lang)} / ${stat.total_max.toLocaleString(this.lang)}`,
-                `${stat.percentage.toLocaleString(this.lang)} %`
-            ];
-
-            cells.forEach(text => {
-                const cell = document.createElement("td");
-                cell.innerText = this.localText(text, []);
-                row.append(cell);
-            });
-
-            this.statTable.append(row);
-        });
-    }
-
     build() {
         this.clearTable();
         this.updateHeaderFilters();
@@ -805,26 +833,56 @@ class JsonTable {
         });
     }
 
+    // renderTable(resultarray) {
+    //     let rowCount = 0;
+    //     resultarray.forEach(element => {
+    //         if (!rowCount && !this.headers.length) {
+    //             this.table.append(this.makeHeader(Object.keys(element)));
+    //         }
+            
+    //         const isInPage = this.page * this.numberOfRow <= rowCount && 
+    //                        rowCount < (this.page + 1) * this.numberOfRow;
+                           
+    //         if (isInPage) {
+    //             const newrow = this.makeRow(Object.values(element));
+    //             this.rows.push(newrow);
+    //             this.table.append(newrow);
+    //         }
+    //         rowCount++;
+    //     });
+        
+    //     this.resultarray = resultarray;
+    //     this.counter.innerText = this.localText("number_of_shown_records", [this.data.length, resultarray.length]);
+    // }
+
     renderTable(resultarray) {
         let rowCount = 0;
+        console.log(this.page, this.numberOfRow);
         resultarray.forEach(element => {
+            // Create header row if not exists
             if (!rowCount && !this.headers.length) {
                 this.table.append(this.makeHeader(Object.keys(element)));
             }
+
             
-            const isInPage = this.page * this.numberOfRow <= rowCount && 
-                           rowCount < (this.page + 1) * this.numberOfRow;
-                           
-            if (isInPage) {
+            
+            // Calculate start and end indices for current page
+            
+            const startIndex = (this.page) * parseInt(this.numberOfRow);
+            const endIndex = (startIndex) + parseInt(this.numberOfRow);
+            
+            // Check if current row should be displayed on this page
+            if (rowCount >= startIndex && rowCount < endIndex) {
                 const newrow = this.makeRow(Object.values(element));
                 this.rows.push(newrow);
                 this.table.append(newrow);
             }
             rowCount++;
         });
-        
-        this.resultarray = resultarray;
-        this.counter.innerText = this.localText("number_of_shown_records", [this.data.length, resultarray.length]);
+
+     this.resultarray = resultarray;
+     this.counter.innerText = this.localText("number_of_shown_records", [this.data.length, resultarray.length]);
+  
     }
 
     updatePagination(resultarray) {

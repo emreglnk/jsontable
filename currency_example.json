@@ -1,0 +1,28 @@
+{
+    "columns": [
+        {"name": "ID", "type": "number"},
+        {"name": "Ürün", "type": "string"},
+        {"name": "Fiyat", "type": "currency"},
+        {"name": "Döviz Cinsi", "type": "string"}
+    ],
+    "data": [
+        {
+            "ID": 1,
+            "Ürün": "Laptop",
+            "Fiyat": 999.99,
+            "Döviz Cinsi": "USD"
+        },
+        {
+            "ID": 2,
+            "Ürün": "Telefon",
+            "Fiyat": 849.50,
+            "Döviz Cinsi": "EUR"
+        },
+        {
+            "ID": 3,
+            "Ürün": "Tablet",
+            "Fiyat": 12499.99,
+            "Döviz Cinsi": "TRY"
+        }
+    ]
+}
