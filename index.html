@@ -17,12 +17,12 @@
 <body>
     <div class="jsontable p-4"></div>
     
-    <script src="localizations/en.js"></script>
     <script src="jsontable.js"></script>
     
     <script>
         const table = new JsonTable('.jsontable', {
-            innerHTML: 1
+            innerHTML: 1,
+            lang: 'tr-TR'
         });
         fetch("sample_data.json")
             .then((response) => response.json())

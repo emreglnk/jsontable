@@ -18,11 +18,14 @@ class JsonTable {
         this.parent = document.querySelector(element);
         this.initializeProperties();
         
-        // Create UI components
-        this.createUIComponents();
-        
-        // Setup event listeners
-        this.setupEventListeners();
+        // Load localizations first, then create UI
+        this.loadLocalizations().then(() => {
+            // Create UI components
+            this.createUIComponents();
+            
+            // Setup event listeners
+            this.setupEventListeners();
+        });
     }
 
     initializeSettings(settings) {
@@ -30,9 +33,40 @@ class JsonTable {
         this.numberOfRow = settings.numberOfRow || 10;
         this.lang = settings.lang || 'tr-TR';
         this.columnTypes = settings.columnTypes || {};
+        console.log('columnTypes:', this.columnTypes);
         this.sortBy = settings.sortBy || 0;
         this.order = settings.order || 1;
-        this.localTexts = jsonTableLocalText;
+    }
+
+    loadLocalizations() {
+        return new Promise((resolve, reject) => {
+            // Get language code from this.lang (e.g., 'tr-TR' -> 'tr')
+            const langCode = this.lang.split('-')[0].toLowerCase();
+            
+            // Create and append script element
+            const script = document.createElement('script');
+            script.src = `localizations/${langCode}.js`;
+            script.onload = () => {
+                if (typeof jsonTableLocalText !== 'undefined') {
+                    this.localTexts = jsonTableLocalText;
+                    // Trigger a rebuild if data is already loaded
+                    if (this.data) {
+                        this.build();
+                    }
+                    resolve();
+                } else {
+                    console.warn('Localizations not found. Make sure language files exist in the localizations directory.');
+                    this.localTexts = {};
+                    resolve();
+                }
+            };
+            script.onerror = () => {
+                console.warn(`Language file ${langCode}.js not found. Falling back to default text.`);
+                this.localTexts = {};
+                resolve();
+            };
+            document.head.appendChild(script);
+        });
     }
 
     initializeProperties() {
@@ -85,7 +119,7 @@ class JsonTable {
         // Create searchbar
         this.searchbar = document.createElement("input");
         this.searchbar.classList.add("searchbar");
-        this.searchbar.setAttribute("placeholder", this.localTexts["search"]);
+        this.searchbar.setAttribute("placeholder", this.localText("search", []));
 
         // Create number of rows select
         this.createNumberOfRowsSelect();
@@ -102,13 +136,13 @@ class JsonTable {
             [10, "10"],
             [25, "25"],
             [50, "50"],
-            [-1, this.localTexts["all"]]
+            [-1, this.localText("all", [])]
         ];
 
         options.forEach(([value, text]) => {
             let option = document.createElement("option");
             option.setAttribute("value", value);
-            option.innerText = text;
+            option.innerText = this.localText(text, []);
             numberOfRowsSelect.append(option);
         });
 
@@ -118,7 +152,7 @@ class JsonTable {
 
     createClearFiltersButton() {
         this.clearFilters = document.createElement("button");
-        this.clearFilters.innerText = this.localTexts["clear_filters"];
+        this.clearFilters.innerText = this.localText("clear_filters", []);
         this.clearFilters.classList.add("clear-filters");
     }
 
@@ -136,7 +170,7 @@ class JsonTable {
 
     createPaginationButton(text, action) {
         const btn = document.createElement("button");
-        btn.innerText = text;
+        btn.innerText = this.localText(text, []);
         btn.addEventListener("click", () => this.gotopage(action));
         return btn;
     }
@@ -149,7 +183,7 @@ class JsonTable {
         // Append search components
         this.topPanel.append(
             this.searchbar,
-            document.createTextNode(this.localTexts["number_of_rows"]),
+            document.createTextNode(this.localText("number_of_rows", [])),
             this.numberOfRowsSelect,
             this.clearFilters
         );
@@ -181,7 +215,7 @@ class JsonTable {
     }
 
     localText(key, arr) {
-        let str=this.localTexts[key];
+        let str = this.localTexts[key] || String(key); // Convert key to string if it's not found
         return str.replace(/%(\d+)/g, function (_, m) {
             return arr[--m];
         });
@@ -222,6 +256,8 @@ class JsonTable {
                 // Check if the value is numeric
                 if (typeof value === 'number' || (typeof value === 'string' && !isNaN(value) && value.trim() !== '')) {
                     this.columnTypes[key] = 'number';
+                } else if (Object.prototype.toString.call(new Date(value)) === '[object Date]' && !isNaN(new Date(value).getTime())) {
+                    this.columnTypes[key] = 'date';
                 }
             });
         }
@@ -326,7 +362,7 @@ class JsonTable {
             if (element == "") {
                 cb.setAttribute("type", "checkbox");
                 cb.setAttribute("value", "<empty>");
-                preview.innerText = this.localTexts["<empty>"];;
+                preview.innerText = this.localText("<empty>", []);;;
             } else {
                 cb.setAttribute("type", "checkbox");
                 cb.setAttribute("value", element);
@@ -358,15 +394,16 @@ class JsonTable {
             if (this.columnTypes[Object.keys(this.data[0])[row]] === "date") {
                 let dd = new Date(element);
                 if (element == '0000-00-00') {
-                    element = this.localTexts["not_a_date"];
+                    element = this.localText("not_a_date", []);
                 }
                 if (dd != "Invalid Date" && element != null) {
                     element = dd.toLocaleDateString(this.lang);
                 }else{
-                    element = this.localTexts["not_a_date"];
+                    element = this.localText("not_a_date", []);
                 }
             }
-            
+            preview.innerHTML = element;
+            // console.log('element:', element);
             li.append(cb);
             li.append(preview);
             listTarget.append(li);
@@ -430,7 +467,7 @@ class JsonTable {
             if (this.innerHTML) {
                 headerTitle.innerHTML = element;
             } else {
-                headerTitle.innerText = element;
+                headerTitle.innerText = this.localText(element, []);
             }
             let filterIcon = document.createElement("div");
             filterIcon.classList.add("filter");
@@ -445,16 +482,16 @@ class JsonTable {
             cellVisible.append(filterIcon);
             let filterTypeSelect = document.createElement("select");
             for (const filt of [
-                ["select", this.localTexts["choose"]],
-                ["inc", this.localTexts["contains"]],
-                ["gt", this.localTexts["bigger_than"]],
-                ["lt", this.localTexts["smaller_than"]],
-                ["eq", this.localTexts["equals"]],
-                ["bt", this.localTexts["between"]]
+                ["select", this.localText("choose", [])],
+                ["inc", this.localText("contains", [])],
+                ["gt", this.localText("bigger_than", [])],
+                ["lt", this.localText("smaller_than", [])],
+                ["eq", this.localText("equals", [])],
+                ["bt", this.localText("between", [])]
             ]) {
                 let filter = document.createElement("option");
                 filter.setAttribute("value", filt[0]);
-                filter.innerText = filt[1];
+                filter.innerText = this.localText(filt[1], []);
                 filterTypeSelect.append(filter);
             }
             cellFilters.append(filterTypeSelect);
@@ -520,7 +557,7 @@ class JsonTable {
             row.append(cell);
 
             let clearFilter = document.createElement("button");
-            clearFilter.innerText = this.localTexts["clear_filters"];
+            clearFilter.innerText = this.localText("clear_filters", []);
             clearFilter.classList.add("clear-filters");
             clearFilter.addEventListener("click", () => this.clearFilter(index));
             cellFilters.append(clearFilter);
@@ -577,13 +614,13 @@ class JsonTable {
     }
 
     formatDate(element) {
-        if (element === '0000-00-00') return this.localTexts["not_a_date"];
+        if (element === '0000-00-00') return this.localText("not_a_date", []);
         
         const date = new Date(element);
         if (date !== "Invalid Date" && element != null) {
             return date.toLocaleDateString(this.lang);
         }
-        return this.localTexts["not_a_date"];
+        return this.localText("not_a_date", []);
     }
 
     isUrl(str) {
@@ -595,7 +632,7 @@ class JsonTable {
         if (this.innerHTML) {
             cell.innerHTML = element;
         } else {
-            cell.innerText = element;
+            cell.innerText = this.localText(element, []);
         }
         return cell;
     }
@@ -621,7 +658,7 @@ class JsonTable {
 
     initializeStatsTable() {
         const headers = ["column", "total", "avg", "min", "max", "percentage"]
-            .map(key => this.localTexts[key])
+            .map(key => this.localText(key, []))
             .join("</th><th>");
             
         this.statTable.innerHTML = `<tr><th>${headers}</th></tr>`;
@@ -668,7 +705,7 @@ class JsonTable {
 
             cells.forEach(text => {
                 const cell = document.createElement("td");
-                cell.innerText = text;
+                cell.innerText = this.localText(text, []);
                 row.append(cell);
             });
 
@@ -775,8 +812,7 @@ class JsonTable {
         });
         
         this.resultarray = resultarray;
-        this.counter.innerText = this.localText("number_of_shown_records", 
-            [this.data.length, resultarray.length]);
+        this.counter.innerText = this.localText("number_of_shown_records", [this.data.length, resultarray.length]);
     }
 
     updatePagination(resultarray) {
@@ -785,7 +821,7 @@ class JsonTable {
         this.pageSelect.innerHTML = "";
         for (let i = 0; i < pageCount; i++) {
             const opt = document.createElement("option");
-            opt.innerText = i + 1;
+            opt.innerText = this.localText(i + 1, []);
             opt.value = i;
             this.pageSelect.append(opt);
         }

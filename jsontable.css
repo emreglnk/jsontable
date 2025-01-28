@@ -124,6 +124,7 @@ svg.filtericon {
     padding-left: 0;
     max-height: 300px;
     overflow-y: auto;
+    margin: 0;
 }
 .stat-table{
     max-width: 800px;
@@ -216,4 +217,26 @@ position: absolute;
 }
 .filter-wrapper.visible{
 display: block;
+}
+
+.filter-search-wrapper {
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    background: white;
+    border-bottom: 1px solid #00000026;
+    margin: -8px -8px 8px -8px;
+}
+
+.filter-search {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid;
+    font-size: 12px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.filter-search:focus {
+    outline: none;
+    border-color: #000;
 }
