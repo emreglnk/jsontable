@@ -21,13 +21,13 @@
     <script src="jsontable.js"></script>
     
     <script>
-        table = new JsonTable('.jsontable', {
+        const table = new JsonTable('.jsontable', {
             innerHTML: 1
         });
-        fetch("data.json")
+        fetch("sample_data.json")
             .then((response) => response.json())
             .then((json) => {
-                table.loadData(json.data)
+                table.loadData(json.data);
             });
     </script>
 </body>

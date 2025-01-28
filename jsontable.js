@@ -29,8 +29,7 @@ class JsonTable {
         this.innerHTML = settings.innerHTML || 1;
         this.numberOfRow = settings.numberOfRow || 10;
         this.lang = settings.lang || 'tr-TR';
-        this.numberCols = settings.numberCols || [];
-        this.dateCols = settings.dateCols || [];
+        this.columnTypes = settings.columnTypes || {};
         this.sortBy = settings.sortBy || 0;
         this.order = settings.order || 1;
         this.localTexts = jsonTableLocalText;
@@ -214,6 +213,19 @@ class JsonTable {
         this.data = data;
         this.headers = [];
         this.rows = [];
+        
+        // Auto-detect numeric columns if not specified in settings
+        if (Object.keys(this.columnTypes).length === 0 && data.length > 0) {
+            const firstRow = data[0];
+            Object.keys(firstRow).forEach(key => {
+                const value = firstRow[key];
+                // Check if the value is numeric
+                if (typeof value === 'number' || (typeof value === 'string' && !isNaN(value) && value.trim() !== '')) {
+                    this.columnTypes[key] = 'number';
+                }
+            });
+        }
+        
         this.build();
     }
 
@@ -343,7 +355,7 @@ class JsonTable {
                     this.build();
                 }
             });
-            if (this.dateCols.indexOf(row) != -1) {
+            if (this.columnTypes[Object.keys(this.data[0])[row]] === "date") {
                 let dd = new Date(element);
                 if (element == '0000-00-00') {
                     element = this.localTexts["not_a_date"];
@@ -406,14 +418,7 @@ class JsonTable {
                 this.idRow = index;
                 return;
             }
-            if (element.includes("_format:number")) {
-                this.numberCols.push(index);
-                element = element.replace("_format:number", "");
-            }
-            if (element.includes("_format:date")) {
-                this.dateCols.push(index);
-                element = element.replace("_format:date", "");
-            }
+
             let cell = document.createElement("td");
             cell.classList.add("header");
 
@@ -458,10 +463,10 @@ class JsonTable {
             valueList.classList.add("select-value");
             let filterInput = document.createElement("input");
             let inputType = "text";
-            if (this.numberCols.indexOf(index) != -1) {
+            if (this.columnTypes[element] === "number") {
                 inputType = "number";
             }
-            if (this.dateCols.indexOf(index) != -1) {
+            if (this.columnTypes[element] === "date") {
                 inputType = "date";
             }
             filterInput.setAttribute("type", inputType);
@@ -560,10 +565,10 @@ class JsonTable {
     }
 
     formatElement(element, index) {
-        if (this.numberCols.indexOf(index) !== -1) {
+        if (this.columnTypes[Object.keys(this.data[0])[index]] === "number") {
             element = parseFloat(element) || 0;
             element = element.toLocaleString(this.lang);
-        } else if (this.dateCols.indexOf(index) !== -1) {
+        } else if (this.columnTypes[Object.keys(this.data[0])[index]] === "date") {
             element = this.formatDate(element);
         } else if (this.isUrl(element)) {
             element = `<a href='${element}'>${element}</a>`;
@@ -596,12 +601,19 @@ class JsonTable {
     }
 
     calculateStats() {
+        // Clear existing stats
+        this.statTable.innerHTML = '';
+        
         this.initializeStatsTable();
         this.stats = [];
         
-        this.numberCols.forEach(index => {
-            const stat = this.calculateColumnStats(index);
-            this.stats.push(stat);
+        Object.keys(this.columnTypes).forEach(key => {
+            if (this.columnTypes[key] === "number") {
+                const stat = this.calculateColumnStats(key);
+                if (stat) {
+                    this.stats.push(stat);
+                }
+            }
         });
         
         this.renderStats();
@@ -615,26 +627,30 @@ class JsonTable {
         this.statTable.innerHTML = `<tr><th>${headers}</th></tr>`;
     }
 
-    calculateColumnStats(index) {
+    calculateColumnStats(key) {
+        if (!this.data.length || !this.data[0].hasOwnProperty(key)) {
+            return null; // Return null or an appropriate default if the key doesn't exist
+        }
+
         const values = {
-            filtered: this.resultarray.map(item => parseFloat(Object.values(item)[index]) || 0),
-            total: this.data.map(item => parseFloat(Object.values(item)[index]) || 0)
+            filtered: this.resultarray.map(item => parseFloat(item[key]) || 0),
+            total: this.data.map(item => parseFloat(item[key]) || 0)
         };
 
         const sum = values.filtered.reduce((a, b) => a + b, 0);
         const totalSum = values.total.reduce((a, b) => a + b, 0);
 
         return {
-            name: Object.keys(this.resultarray[0])[index].replace("_format:number", ""),
+            name: key, // Assuming the key is now clean without any suffix
             sum,
-            avg: sum / this.resultarray.length,
+            avg: this.resultarray.length ? sum / this.resultarray.length : 0,
             min: Math.min(...values.filtered),
             max: Math.max(...values.filtered),
             total_sum: totalSum,
-            total_avg: totalSum / this.data.length,
+            total_avg: this.data.length ? totalSum / this.data.length : 0,
             total_min: Math.min(...values.total),
             total_max: Math.max(...values.total),
-            percentage: (sum / totalSum) * 100
+            percentage: totalSum ? (sum / totalSum) * 100 : 0
         };
     }
 
@@ -671,6 +687,7 @@ class JsonTable {
         this.renderTable(resultarray);
         
         this.updatePagination(resultarray);
+        // Calculate stats after data is filtered and sorted
         this.calculateStats();
     }
 
