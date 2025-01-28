@@ -333,101 +333,113 @@ class JsonTable {
         header.classList.toggle("showing-filters");
         let filter = this.filterWrappers[row];
         filter.classList.toggle("visible");
+        
         // set position of filter from header
         let rect = header.getBoundingClientRect();
         filter.style.top = rect.bottom + "px";
         filter.style.left = rect.left-90 + "px";
         filter.style.width = rect.width + "px"; 
+        
         let listTarget = filter.getElementsByClassName("select-value")[0];
         listTarget.innerHTML = '';
+        
+        // Add search input for filter options
+        let searchContainer = document.createElement("div");
+        searchContainer.className = "filter-search-container";
+        
+        let searchInput = document.createElement("input");
+        searchInput.type = "text";
+        searchInput.className = "filter-search";
+        searchInput.placeholder = this.localText("filter_search", []);
+        
+        searchContainer.appendChild(searchInput);
+        listTarget.appendChild(searchContainer);
+        
+        let optionsList = document.createElement("ul");
+        listTarget.appendChild(optionsList);
+        
         let activeState = this.filteredUniq[row];
         if (this.filterSavedState[row] != undefined) {
             activeState = this.filterSavedState[row];
         }
 
         activeState.sort((a, b) => {
-            if (a < b) {
-                return -1;
-            } else if (a > b) {
-                return 1;
-            }
+            if (a < b) return -1;
+            if (a > b) return 1;
             return 0;
         });
 
-        activeState.forEach(element => {
-            let li = document.createElement("li");
-            let cb = document.createElement("input");
-            let preview = document.createElement("div");
- 
-            if (element == "") {
-                cb.setAttribute("type", "checkbox");
-                cb.setAttribute("value", "<empty>");
-                preview.innerText = this.localText("<empty>", []);;;
-            } else {
-                cb.setAttribute("type", "checkbox");
-                cb.setAttribute("value", element);
-                preview.innerHTML = element;
-            }
-            if (typeof (this.tableFilters[row].value) == 'object' && this.tableFilters[row].value.indexOf(cb.value) != -1) {
-                cb.setAttribute("checked", "checked");
-            }
-            cb.addEventListener("change", () => {
-                if (cb.checked) {
-                    this.filterSavedState = [];
-                    this.filterSavedState[row] = activeState;
-                    this.tableFilters[row].op = "select";
-                    if (typeof this.tableFilters[row].value == 'string') {
-                        this.tableFilters[row].value = [];
+        const renderOptions = (searchText = '') => {
+            optionsList.innerHTML = '';
+            activeState.forEach(element => {
+                let elementText = element == "" ? this.localText("<empty>", []) : element;
+                if (this.columnTypes[Object.keys(this.data[0])[row]] === "date") {
+                    let dd = new Date(element);
+                    if (element == '0000-00-00') {
+                        elementText = this.localText("not_a_date", []);
+                    } else if (dd != "Invalid Date" && element != null) {
+                        elementText = dd.toLocaleDateString(this.lang);
+                    } else {
+                        elementText = this.localText("not_a_date", []);
                     }
-                    this.tableFilters[row].value.push(cb.value);
-                    this.build();
+                }
+                
+                // Filter options based on search text
+                if (searchText && !elementText.toString().toLowerCase().includes(searchText.toLowerCase())) {
+                    return;
+                }
+                
+                let li = document.createElement("li");
+                let cb = document.createElement("input");
+                let preview = document.createElement("div");
+     
+                if (element == "") {
+                    cb.setAttribute("type", "checkbox");
+                    cb.setAttribute("value", "<empty>");
+                    preview.innerText = this.localText("<empty>", []);
                 } else {
-                    let index = this.tableFilters[row].value.indexOf(cb.value);
-                    this.tableFilters[row].value.splice(index, 1);
-                    if (this.tableFilters[row].value.length == 0) {
-                        this.tableFilters[row].op = "na";
-                        this.tableFilters[row].value = "";
+                    cb.setAttribute("type", "checkbox");
+                    cb.setAttribute("value", element);
+                    preview.innerHTML = elementText;
+                }
+                
+                if (typeof (this.tableFilters[row].value) == 'object' && this.tableFilters[row].value.indexOf(cb.value) != -1) {
+                    cb.setAttribute("checked", "checked");
+                }
+                
+                cb.addEventListener("change", () => {
+                    if (cb.checked) {
+                        this.filterSavedState = [];
+                        this.filterSavedState[row] = activeState;
+                        this.tableFilters[row].op = "select";
+                        if (typeof this.tableFilters[row].value == 'string') {
+                            this.tableFilters[row].value = [];
+                        }
+                        this.tableFilters[row].value.push(cb.value);
+                    } else {
+                        let index = this.tableFilters[row].value.indexOf(cb.value);
+                        this.tableFilters[row].value.splice(index, 1);
+                        if (this.tableFilters[row].value.length == 0) {
+                            this.tableFilters[row].op = "na";
+                            this.tableFilters[row].value = "";
+                        }
                     }
                     this.build();
-                }
+                });
+                
+                li.appendChild(cb);
+                li.appendChild(preview);
+                optionsList.appendChild(li);
             });
-            if (this.columnTypes[Object.keys(this.data[0])[row]] === "date") {
-                let dd = new Date(element);
-                if (element == '0000-00-00') {
-                    element = this.localText("not_a_date", []);
-                }
-                if (dd != "Invalid Date" && element != null) {
-                    element = dd.toLocaleDateString(this.lang);
-                }else{
-                    element = this.localText("not_a_date", []);
-                }
-            }
-            preview.innerHTML = element;
-            // console.log('element:', element);
-            li.append(cb);
-            li.append(preview);
-            listTarget.append(li);
+        };
+
+        // Initial render without search
+        renderOptions();
+
+        // Add search event listener
+        searchInput.addEventListener('input', (e) => {
+            renderOptions(e.target.value);
         });
-
-    };
-
-    gotopage(page) {
-        if (page == "p") {
-            if (this.page > 0) {
-                page = this.page - 1;
-            } else {
-                page = 0;
-            }
-        }
-        if (page == "n") {
-            if (this.page + 1 < (this.resultarray.length / this.numberOfRow)) {
-                page = this.page + 1;
-            } else {
-                page = this.page;
-            }
-        }
-        this.page = parseInt(page);
-        this.build();
     }
 
     makeHeader(items) {

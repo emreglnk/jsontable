@@ -1,5 +1,6 @@
 var jsonTableLocalText = {
     "search":"Arama...",
+    "filter_search": "Filtre ara...",
     "not_a_date":"Tarih Yok",
     "choose":"Seçim",
     "contains":"İçeren",

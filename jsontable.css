@@ -155,6 +155,15 @@ svg.filtericon {
     display: inline-block;
     width: 15px;
 }
+.select-value ul{
+    list-style: none;
+    padding-left: 0;
+}
+
+/* filter içindeki scroll barları görünmez yapmak için  */ 
+.select-value {
+    overflow-x: hidden;
+}
 
 .hidden {
     display: none;
@@ -229,14 +238,19 @@ display: block;
 }
 
 .filter-search {
-    width: 100%;
-    padding: 6px;
-    border: 1px solid;
+    width: calc(100% - 10px);
+    border: 1px solid #ddd;
     font-size: 12px;
     font-family: 'Poppins', sans-serif;
+    background-color: #fff;
+}
+
+.filter-search::placeholder {
+    color: #999;
+    font-style: italic;
 }
 
 .filter-search:focus {
     outline: none;
-    border-color: #000;
+    border-color: #666;
 }

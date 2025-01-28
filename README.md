@@ -86,6 +86,28 @@ Multiple filter types are available:
 
 Global search functionality that filters across all columns.
 
+## Localization
+
+JsonTable supports multiple languages through its localization system. To use a different language:
+
+1. Set the `lang` parameter when initializing JsonTable:
+```javascript
+const table = new JsonTable('.jsontable', {
+    lang: 'tr-TR' // Use Turkish language and date formats
+});
+```
+
+2. Create a language file in the `localizations` directory (e.g., `tr.js` for Turkish):
+```javascript
+var jsonTableLocalText = {
+    "search": "Arama...",
+    "not_a_date": "Tarih Yok",
+    // ... other translations
+}
+```
+
+The language file will be loaded automatically based on the `lang` parameter. Date formats will also be localized according to the specified language.
+
 ## Events
 
 The table automatically updates when:
